@@ -1,47 +1,11 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <stdbool.h>
+#include "common.h"
+#include "common_includes.h"
 
-#define TRUE 1
-#define FALSE 0
 
-struct authentication_data {
-    char email[50];
-    char password[50];
-};
-
-struct user_description {
-    char name[50];
-    char email[50];
-    char password[50];
-};
-
-struct status_message {
-    int status_code;
-    char status_msg[50];
-};
-
-struct mail {
-    char from[50];
-    char to[50];
-    char subject[50];
-    char body[100];
-};
-
-struct inbox {
-    int count;
-    struct mail mails[100];
-};
 
 void login_or_create(int *option);
-void get_credintials(struct authentication_data *);
-void send_cred_to_server(int sockfd, struct authentication_data *);
+void get_credintials(struct user_description *);
+void send_cred_to_server(int sockfd, struct user_description *);
 void get_user_info(struct user_description *);
 void send_user_info(int sockfd, struct user_description *);
 int  status(int sockfd);
@@ -52,7 +16,7 @@ void show_inbox(int sockfd);
 int main(int argc, char *argv[])
 {
     struct  sockaddr_in server_addr;
-    struct  authentication_data auth_cred;
+    struct  user_description auth_cred;
     struct  user_description user;
     int     sockfd, port, option, is_logged_in, is_socket_connected = FALSE;
 
@@ -143,20 +107,18 @@ void login_or_create(int *option) {
     scanf("%d", option);
 }
 
-void get_credintials(struct authentication_data *auth_cred) {
+void get_credintials(struct user_description *auth_cred) {
     printf("EMAIL => ");
     scanf("%s", auth_cred->email);
     printf("PASSWORD => ");
     scanf("%s", auth_cred->password);
 }
 
-void send_cred_to_server(int sockfd, struct authentication_data *auth_cred) {
+void send_cred_to_server(int sockfd, struct user_description *auth_cred) {
     send(sockfd, auth_cred, sizeof(*auth_cred), 0);
 }
 
 void get_user_info(struct user_description *user) {
-    printf("ENTER user_description NAME => ");
-    scanf("%s", user->name);
     printf("ENTER EMAIL ADDRESS => ");
     scanf("%s", user->email);
     printf("ENTER PASSWORD => ");

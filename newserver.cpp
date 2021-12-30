@@ -1,5 +1,4 @@
-#include "common_includes.h"
-#include "common.h"
+#include "ClientDescriptior/ClientDescriptor.h"
 
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "EndlessLoop"
@@ -14,8 +13,7 @@ void handle_user_request_to_view_mails(int client_sockfd, struct user_descriptio
 
 int handle_client(int client_sockfd) {
     int option, is_logged_in;
-    struct user_description auth_cred;
-    struct  user_description user, user_check;
+    ClientDescriptor cli = ClientDescriptor(client_sockfd);
 
     while (TRUE) {
         if (recv(client_sockfd, &option, sizeof(option), 0) == 0) {
@@ -24,18 +22,18 @@ int handle_client(int client_sockfd) {
 
         switch (option) {
             case 1:
-                is_logged_in = login(client_sockfd, &auth_cred, &user);
+                cli.process_login();
                 break;
 
             case 2:
-                is_logged_in = create_user_and_login(client_sockfd, &user, &user_check);
+                cli.process_register();
                 break;
 
             default:
                 break;
         }
 
-        if(is_logged_in == FALSE) {
+        if(cli.is_authorized == FALSE) {
             continue;
         }
 
@@ -47,7 +45,7 @@ int handle_client(int client_sockfd) {
 
             switch (option) {
                 case 1:
-                    handle_user_request_to_view_mails(client_sockfd, &user);
+                    handle_user_request_to_view_mails(client_sockfd, &cli.client_desc);
                     break;
 
                 case 2:
@@ -113,74 +111,6 @@ int main(int argc, char *argv[]) {
         std::thread thread1(handle_client, client_sockfd);
         thread1.detach();
     }
-}
-
-int login(int client_sockfd, struct user_description *auth_cred, struct user_description *user) {
-    FILE   *users_dat;
-    recv(client_sockfd, auth_cred, sizeof(*auth_cred), 0);
-    users_dat = fopen(USERS_DAT_FILE, "rb");
-
-    if(users_dat == NULL) {
-        send_status(client_sockfd, 500, "NO user_description EXISTS!!");
-        return FALSE;
-    }
-
-    while (!feof(users_dat)) {
-        fread(user, sizeof(struct user_description), 1, users_dat);
-
-        if ( strcmp(user->email, auth_cred->email) == 0) {
-            if ( strcmp(user->password, auth_cred->password) == 0) {
-                send_status(client_sockfd, 200, "Logged In Successfully");
-                fclose(users_dat);
-                return TRUE;
-            } else {
-                send_status(client_sockfd, 403, "Password Is Incorrect");
-                fclose(users_dat);
-                return FALSE;
-            }
-        }
-    }
-
-    send_status(client_sockfd, 403, "Invalid Email And Password");
-    fclose(users_dat);
-    return FALSE;
-}
-
-int create_user_and_login(int client_sockfd, struct user_description *user, struct user_description *user_check) {
-    FILE   *users_dat;
-
-    recv(client_sockfd, user, sizeof(*user), 0);
-
-    users_dat = fopen(USERS_DAT_FILE, "rb");
-    if(users_dat == NULL) {
-        send_status(client_sockfd, 500, "Internal Server Error");
-        fclose(users_dat);
-        return FALSE;
-    }
-
-    while (!feof(users_dat)) {
-        fread(user_check, sizeof(struct user_description), 1, users_dat);
-
-        if (strcmp(user->email, user_check->email) == 0) {
-            send_status(client_sockfd, 403, "Email already exist");
-            fclose(users_dat);
-            return FALSE;
-        }
-    }
-    fclose(users_dat);
-    users_dat = fopen(USERS_DAT_FILE, "ab");
-    fwrite(user, sizeof(struct user_description), 1, users_dat);
-    send_status(client_sockfd, 200, "OK");
-    fclose(users_dat);
-    return TRUE;
-}
-
-
-void send_status(int client_sockfd, int status_code, char *status_msg) {
-    struct status_message status;
-    status.status_code = status_code;
-    strcpy(status.status_msg, status_msg);
-    send(client_sockfd, &status, sizeof(status), 0);
 }
 
 void save_mail_to_database(int client_sockfd)
