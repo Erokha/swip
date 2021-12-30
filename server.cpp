@@ -6,6 +6,10 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <thread>
+
+#pragma clang diagnostic push
+#pragma ide diagnostic ignored "EndlessLoop"
 
 #define TRUE 1
 #define FALSE 0
@@ -47,51 +51,15 @@ void save_mail_to_database(int client_sockfd);
 void handle_user_request_to_view_mails(int client_sockfd, struct user_description *user);
 
 
-int main(int argc, char *argv[]) {
-    struct  sockaddr_in server_addr, client_addr;
-    struct  authentication_data auth_cred;
+int handle_client(int client_sockfd) {
+    int option, is_logged_in;
+    struct authentication_data auth_cred;
     struct  user_description user, user_check;
-    int     sockfd, client_sockfd, port, client_len, option, is_logged_in;
-    FILE    *fileptr;
 
-    if(argc != 3) {
-        fprintf(stderr, "Invalid Arguments\n");
-        fprintf(stderr, "./server -p <port number>\n");
-        return -1;
-    }
-
-    port = atoi(argv[2]); // assign port number
-    client_len = sizeof(client_addr);
-
-    // create a socket
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if(sockfd < 0) {
-        perror("socket");
-        return -1;
-    }
-
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(port);
-
-    if ( bind(sockfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0 ) {
-        perror("bind");
-        return -1;
-    }
-
-    if ( listen(sockfd, 5) < 0) {
-        perror("listen");
-        return -1;
-    }
-
-    while(TRUE) {
-
-        if ((client_sockfd = accept(sockfd, (struct sockaddr *) &client_addr, reinterpret_cast<socklen_t *>(&client_len))) < 0) {
-            perror("accept");
-            continue;
+    while (TRUE) {
+        if (recv(client_sockfd, &option, sizeof(option), 0) == 0) {
+            return FALSE;
         }
-
-        recv(client_sockfd, &option, sizeof(option), 0);
 
         switch (option) {
             case 1:
@@ -127,14 +95,60 @@ int main(int argc, char *argv[]) {
                     break;
 
                 default:
-                    printf("Please choose an option !!\n");
-                    break;
+                    close(client_sockfd);
+                    return 1;
             }
 
             if(option == 3) break;
         }
-
         close(client_sockfd);
+    }
+    close(client_sockfd);
+}
+
+
+int main(int argc, char *argv[]) {
+    struct  sockaddr_in server_addr, client_addr;
+    int     sockfd, client_sockfd, port, client_len;
+
+    if(argc != 3) {
+        fprintf(stderr, "Invalid Arguments\n");
+        fprintf(stderr, "./server -p <port number>\n");
+        return -1;
+    }
+
+    port = atoi(argv[2]);
+    client_len = sizeof(client_addr);
+
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if(sockfd < 0) {
+        perror("socket");
+        return -1;
+    }
+
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port = htons(port);
+
+    if ( bind(sockfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0 ) {
+        perror("bind");
+        return -1;
+    }
+
+    if ( listen(sockfd, 5) < 0) {
+        perror("listen");
+        return -1;
+    }
+
+    while(TRUE) {
+
+        if ((client_sockfd = accept(sockfd, (struct sockaddr *) &client_addr, reinterpret_cast<socklen_t *>(&client_len))) < 0) {
+            perror("accept");
+            continue;
+        }
+
+        std::thread thread1(handle_client, client_sockfd);
+        thread1.detach();
     }
 }
 
@@ -266,3 +280,5 @@ void handle_user_request_to_view_mails(int client_sockfd, struct user_descriptio
 
     fclose(mails_dat);
 }
+
+#pragma clang diagnostic pop

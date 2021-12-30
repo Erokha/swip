@@ -30,3 +30,13 @@
 *.exe
 *.out
 *.app
+
+# compile
+.DS_Store
+.idea/
+client
+cmake-build-debug/
+server
+
+# buisness
+*.dat
